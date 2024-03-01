@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"fvm/file"
+	"fvm/web"
 	"os"
+	"path/filepath"
 )
 
 const FvmVersion = "1.0.0"
@@ -16,6 +19,8 @@ func main() {
 	}
 
 	switch args[1] {
+	case "install":
+		install(args[2])
 	case "v":
 		fmt.Println(FvmVersion)
 	case "--version":
@@ -29,6 +34,17 @@ func main() {
 	default:
 		help()
 	}
+}
+
+func install(flutter_version string) {
+	target_file_dir := filepath.Join(os.Getenv("FVM_HOME"), "v"+flutter_version)
+	os.Mkdir(target_file_dir, os.ModeDir)
+	web.DownloadFlutterBinary(target_file_dir, flutter_version, "stable", "windows")
+
+	file.Unzip(filepath.Join(target_file_dir, "v"+flutter_version+".zip"), target_file_dir)
+	os.Remove(filepath.Join(target_file_dir, "v"+flutter_version+".zip"))
+
+	fmt.Println("\n\nInstallation complete. If you want to use this version, type\n\nfvm use " + flutter_version)
 }
 
 func help() {
