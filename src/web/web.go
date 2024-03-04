@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 )
 
@@ -14,9 +15,11 @@ const BaseBinariesUrl = "https://storage.googleapis.com/flutter_infra_release/re
 
 func DownloadFlutterBinary(target_file_dir string, flutter_version string, channel string, os_platform string) {
 
-	out, err := os.Create(target_file_dir + "\\v" + flutter_version + ".zip")
+	target_zip_file := filepath.Join(target_file_dir, "v"+flutter_version+".zip")
+
+	out, err := os.Create(target_zip_file)
 	if err != nil {
-		log.Fatalln("Error while creating"+target_file_dir+"\\v"+flutter_version+".zip", err)
+		log.Fatalln("Error while creating: "+target_zip_file+" ", err)
 	}
 	defer out.Close()
 

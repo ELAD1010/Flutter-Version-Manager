@@ -38,11 +38,12 @@ func main() {
 
 func install(flutter_version string) {
 	target_file_dir := filepath.Join(os.Getenv("FVM_HOME"), "v"+flutter_version)
+	target_zip_file := filepath.Join(target_file_dir, "v"+flutter_version+".zip")
 	os.Mkdir(target_file_dir, os.ModeDir)
 	web.DownloadFlutterBinary(target_file_dir, flutter_version, "stable", "windows")
 
-	file.Unzip(filepath.Join(target_file_dir, "v"+flutter_version+".zip"), target_file_dir)
-	os.Remove(filepath.Join(target_file_dir, "v"+flutter_version+".zip"))
+	file.Unzip(target_zip_file, target_file_dir)
+	os.Remove(target_zip_file)
 
 	fmt.Println("\n\nInstallation complete. If you want to use this version, type\n\nfvm use " + flutter_version)
 }
