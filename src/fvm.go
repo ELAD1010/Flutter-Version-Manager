@@ -3,15 +3,25 @@ package main
 import (
 	"fmt"
 	"fvm/file"
+	"fvm/flutter"
 	"fvm/web"
 	"os"
 	"path/filepath"
+	"runtime"
+
+	"github.com/olekukonko/tablewriter"
 )
 
 const FvmVersion = "1.0.0"
 
 func main() {
 	args := os.Args
+
+	detail := ""
+
+	if len(args) > 2 {
+		detail = args[2]
+	}
 
 	if len(args) < 2 {
 		help()
@@ -20,7 +30,11 @@ func main() {
 
 	switch args[1] {
 	case "install":
-		install(args[2])
+		install(detail)
+	case "ls":
+		fallthrough
+	case "list":
+		list(detail)
 	case "v":
 		fmt.Println(FvmVersion)
 	case "--version":
@@ -36,16 +50,102 @@ func main() {
 	}
 }
 
-func install(flutter_version string) {
-	target_file_dir := filepath.Join(os.Getenv("FVM_HOME"), "v"+flutter_version)
-	target_zip_file := filepath.Join(target_file_dir, "v"+flutter_version+".zip")
-	os.Mkdir(target_file_dir, os.ModeDir)
-	web.DownloadFlutterBinary(target_file_dir, flutter_version, "stable", "windows")
+func list(filter string) {
 
-	file.Unzip(target_zip_file, target_file_dir)
-	os.Remove(target_zip_file)
+	if filter == "" {
+		filter = "installed"
+	}
 
-	fmt.Println("\n\nInstallation complete. If you want to use this version, type\n\nfvm use " + flutter_version)
+	if filter != "installed" && filter != "available" {
+		fmt.Println("\nInvalid list option.\n\nPlease use on of the following\n  - nvm list\n  - nvm list installed\n  - nvm list available")
+		help()
+		return
+	}
+
+	if filter == "installed" {
+
+	}
+
+	if filter == "available" {
+		showReleases()
+	}
+
+}
+
+func showReleases() {
+
+	lts, current, stables, betas := flutter.GetReleases()
+
+	releases := 25
+
+	data := make([][]string, releases, releases+5)
+
+	for i := 0; i < releases; i++ {
+		release := make([]string, 4, 6)
+
+		release[0] = ""
+		release[1] = ""
+		release[2] = ""
+		release[3] = ""
+
+		if len(current) > i {
+			if len(current[i]) > 0 {
+				release[0] = current[i]
+			}
+		}
+
+		if len(lts) > i {
+			if len(lts[i]) > 0 {
+				release[1] = lts[i]
+			}
+		}
+
+		if len(stables) > i {
+			if len(stables[i]) > 0 {
+				release[2] = stables[i]
+			}
+		}
+
+		if len(betas) > i {
+			if len(betas[i]) > 0 {
+				release[3] = betas[i]
+			}
+		}
+
+		data[i] = release
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"   Current  ", "    LTS     ", " Stable ", "Beta"})
+	table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
+	table.SetAlignment(tablewriter.ALIGN_CENTER)
+	table.SetCenterSeparator("|")
+	table.AppendBulk(data) // Add Bulk Data
+	table.Render()
+
+	fmt.Println("\nThis is a partial list. For a complete list, visit https://docs.flutter.dev/release/archive")
+
+}
+
+func install(flutterVersion string) {
+	targetFileDir := filepath.Join(os.Getenv("FVM_HOME"), "v"+flutterVersion)
+	targetZipFile := filepath.Join(targetFileDir, "v"+flutterVersion+".zip")
+	os.Mkdir(targetFileDir, os.ModeDir)
+
+	channelType := flutter.GetChannelType(flutterVersion)
+
+	osPlatform := runtime.GOOS
+
+	if osPlatform == "darwin" {
+		osPlatform = "macos"
+	}
+
+	web.DownloadFlutterBinary(targetFileDir, flutterVersion, channelType, osPlatform)
+
+	file.Unzip(targetZipFile, targetFileDir)
+	os.Remove(targetZipFile)
+
+	fmt.Println("\n\nInstallation complete. If you want to use this version, type\n\nfvm use " + flutterVersion)
 }
 
 func help() {
