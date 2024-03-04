@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -9,23 +10,78 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 )
+
+type Releases struct {
+	Hash           string    `json:"hash"`
+	Channel        string    `json:"channel"`
+	Version        string    `json:"version"`
+	DartSdkVersion string    `json:"dart_sdk_version,omitempty"`
+	DartSdkArch    string    `json:"dart_sdk_arch,omitempty"`
+	ReleaseDate    time.Time `json:"release_date"`
+	Archive        string    `json:"archive"`
+	Sha256         string    `json:"sha256"`
+}
+
+type FlutterReleases struct {
+	BaseURL        string         `json:"base_url"`
+	CurrentRelease CurrentRelease `json:"current_release"`
+	Releases       []Release      `json:"releases"`
+}
+
+type CurrentRelease struct {
+	Beta   string `json:"beta"`
+	Dev    string `json:"dev"`
+	Stable string `json:"stable"`
+}
+
+type Release struct {
+	Archive        string    `json:"archive"`
+	Channel        string    `json:"channel"`
+	DartSdkArch    string    `json:"dart_sdk_arch,omitempty"`
+	DartSdkVersion string    `json:"dart_sdk_version,omitempty"`
+	Hash           string    `json:"hash"`
+	ReleaseDate    time.Time `json:"release_date"`
+	Sha256         string    `json:"sha256"`
+	Version        string    `json:"version"`
+}
 
 const BaseBinariesUrl = "https://storage.googleapis.com/flutter_infra_release/releases"
 
-func DownloadFlutterBinary(target_file_dir string, flutter_version string, channel string, os_platform string) {
+const FlutterReleasesUrl = "https://storage.googleapis.com/flutter_infra_release/releases/releases_windows.json"
 
-	target_zip_file := filepath.Join(target_file_dir, "v"+flutter_version+".zip")
+func GetAllReleases() []Release {
+	response, err := http.Get(FlutterReleasesUrl)
 
-	out, err := os.Create(target_zip_file)
 	if err != nil {
-		log.Fatalln("Error while creating: "+target_zip_file+" ", err)
+		log.Fatalln(err)
+	}
+
+	defer response.Body.Close()
+
+	var flutterReleases FlutterReleases
+
+	if err := json.NewDecoder(response.Body).Decode(&flutterReleases); err != nil {
+		log.Fatalln(err)
+	}
+
+	return flutterReleases.Releases
+}
+
+func DownloadFlutterBinary(targetFileDir string, flutterVersion string, channel string, osPlatform string) {
+
+	targetZipFile := filepath.Join(targetFileDir, "v"+flutterVersion+".zip")
+
+	out, err := os.Create(targetZipFile)
+	if err != nil {
+		log.Fatalln("Error while creating: "+targetZipFile+" ", err)
 	}
 	defer out.Close()
 
-	full_download_url := fmt.Sprintf("%s/%s/%s/%s", BaseBinariesUrl, channel, os_platform, "flutter_"+os_platform+"_"+flutter_version+"-"+channel+".zip")
+	fullDownloadUrl := fmt.Sprintf("%s/%s/%s/%s", BaseBinariesUrl, channel, osPlatform, "flutter_"+osPlatform+"_"+flutterVersion+"-"+channel+".zip")
 
-	resp, err := http.Get(full_download_url)
+	resp, err := http.Get(fullDownloadUrl)
 
 	if err != nil {
 		log.Fatalln(err)
@@ -41,7 +97,7 @@ func DownloadFlutterBinary(target_file_dir string, flutter_version string, chann
 		out.Close()
 		resp.Body.Close()
 
-		err := os.RemoveAll(target_file_dir)
+		err := os.RemoveAll(targetFileDir)
 		if err != nil {
 			fmt.Println("Error while rolling back", err)
 		}
