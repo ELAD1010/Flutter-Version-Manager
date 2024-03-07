@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -381,7 +382,28 @@ func list(filter string) {
 	}
 
 	if filter == "installed" {
+		fmt.Println("")
+		currentVersion := flutter.GetCurrentVersion()
+		installedVersions := flutter.GetInstalled(env.root)
 
+		for _, version := range installedVersions {
+			isFlutter := regexp.MustCompile("v").MatchString(version)
+
+			if !isFlutter {
+				continue
+			}
+
+			version = strings.Replace(version, "v", "", 1)
+			if currentVersion == version {
+				fmt.Println(version + " *")
+				continue
+			}
+			fmt.Println(version + " ")
+		}
+
+		if len(installedVersions) == 0 {
+			fmt.Println("No installations recognized.")
+		}
 	}
 
 	if filter == "available" {
