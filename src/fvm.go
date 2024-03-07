@@ -13,6 +13,29 @@ import (
 )
 
 const FvmVersion = "1.0.0"
+type Environment struct {
+	settings        string
+	root            string
+	symlink         string
+	flutter_mirror  string
+	proxy           string
+	originalpath    string
+	originalversion string
+	verifyssl       bool
+}
+
+var home = filepath.Clean(os.Getenv("FVM_HOME") + "\\settings.txt")
+var symlink = filepath.Clean(os.Getenv("FVM_SYMLINK"))
+
+var env = &Environment{
+	settings:        home,
+	root:            "",
+	symlink:         symlink,
+	flutter_mirror:  "",
+	originalpath:    "",
+	originalversion: "",
+	verifyssl:       true,
+}
 
 func main() {
 	args := os.Args
