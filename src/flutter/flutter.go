@@ -4,6 +4,7 @@ import (
 	"fvm/file"
 	"fvm/web"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 
@@ -17,6 +18,23 @@ func reverseStringArray(str []string) []string {
 	}
 
 	return str
+}
+
+func GetCurrentVersion() string {
+	cmd := exec.Command("flutter", "--version")
+	str, err := cmd.Output()
+	if err == nil {
+		flutterVersionDescription, _, found := strings.Cut(string(str), "•")
+
+		v := strings.TrimSpace(strings.TrimPrefix(flutterVersionDescription, "Flutter"))
+
+		if !found {
+			return "Unknown"
+		}
+
+		return v
+	}
+	return "Unknown"
 }
 
 func IsVersionInstalled(root string, version string) bool {
