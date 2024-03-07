@@ -18,6 +18,9 @@ func main() {
 	args := os.Args
 
 	detail := ""
+	if !isTerminal() {
+		os.Exit(0)
+	}
 
 	if len(args) > 2 {
 		detail = args[2]
@@ -48,6 +51,13 @@ func main() {
 	default:
 		help()
 	}
+}
+func isTerminal() bool {
+	fileInfo, err := os.Stdout.Stat()
+	if err != nil {
+		return false
+	}
+	return (fileInfo.Mode() & os.ModeCharDevice) != 0
 }
 
 func list(filter string) {
