@@ -1,18 +1,25 @@
 package main
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"fvm/file"
 	"fvm/flutter"
 	"fvm/web"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 
+	"github.com/blang/semver"
 	"github.com/olekukonko/tablewriter"
 )
 
 const FvmVersion = "1.0.0"
+
 type Environment struct {
 	settings        string
 	root            string
@@ -41,6 +48,7 @@ func main() {
 	args := os.Args
 
 	detail := ""
+
 	if !isTerminal() {
 		os.Exit(0)
 	}
@@ -54,9 +62,15 @@ func main() {
 		return
 	}
 
+	if args[1] != "version" && args[1] != "--version" && args[1] != "v" && args[1] != "-v" && args[1] != "--v" {
+		setup()
+	}
+
 	switch args[1] {
 	case "install":
 		install(detail)
+	case "use":
+		use(detail)
 	case "ls":
 		fallthrough
 	case "list":
@@ -73,6 +87,48 @@ func main() {
 		fmt.Println(FvmVersion)
 	default:
 		help()
+	}
+}
+
+func setup() {
+	lines, err := file.ReadLines(env.settings)
+	if err != nil {
+		fmt.Println("\nERROR", err)
+		os.Exit(1)
+	}
+
+	// Process each line and extract the value
+	m := make(map[string]string)
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		line = os.ExpandEnv(line)
+		res := strings.Split(line, ":")
+		if len(res) < 2 {
+			continue
+		}
+		m[res[0]] = strings.TrimSpace(strings.Join(res[1:], ":")) //In case that the value is filepath with e.g C:\Users, join all path elements to the complete string
+	}
+
+	if val, ok := m["root"]; ok {
+		env.root = filepath.Clean(val)
+	}
+	if val, ok := m["originalpath"]; ok {
+		env.originalpath = filepath.Clean(val)
+	}
+	if val, ok := m["originalversion"]; ok {
+		env.originalversion = val
+	}
+	if val, ok := m["flutter_mirror"]; ok {
+		env.flutter_mirror = val
+	}
+
+	web.SetMirrors(env.flutter_mirror)
+
+	// Make sure the directories exist
+	_, e := os.Stat(env.root)
+	if e != nil {
+		fmt.Println(env.root + " could not be found or does not exist. Exiting.")
+		return
 	}
 }
 func isTerminal() bool {
