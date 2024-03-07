@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -47,12 +48,23 @@ type Release struct {
 	Version        string    `json:"version"`
 }
 
-const BaseBinariesUrl = "https://storage.googleapis.com/flutter_infra_release/releases"
+var flutterBaseUrl = "https://storage.googleapis.com/flutter_infra_release/"
 
-const FlutterReleasesUrl = "https://storage.googleapis.com/flutter_infra_release/releases/releases_windows.json"
+func SetMirrors(flutterMirror string) {
+	if flutterMirror != "" && flutterMirror != "none" {
+		flutterBaseUrl = flutterMirror
+		if strings.ToLower(flutterBaseUrl[0:4]) != "http" {
+			flutterBaseUrl = "http://" + flutterBaseUrl
+		}
+		if !strings.HasSuffix(flutterBaseUrl, "/") {
+			flutterBaseUrl = flutterBaseUrl + "/"
+		}
+	}
+}
 
 func GetAllReleases() []Release {
-	response, err := http.Get(FlutterReleasesUrl)
+	flutterReleasesUrl := flutterBaseUrl + "releases/releases_windows.json"
+	response, err := http.Get(flutterReleasesUrl)
 
 	if err != nil {
 		log.Fatalln(err)
@@ -71,6 +83,8 @@ func GetAllReleases() []Release {
 
 func DownloadFlutterBinary(targetFileDir string, flutterVersion string, channel string, osPlatform string) {
 
+	baseBinariesUrl := flutterBaseUrl + "releases"
+
 	targetZipFile := filepath.Join(targetFileDir, "v"+flutterVersion+".zip")
 
 	out, err := os.Create(targetZipFile)
@@ -79,7 +93,7 @@ func DownloadFlutterBinary(targetFileDir string, flutterVersion string, channel 
 	}
 	defer out.Close()
 
-	fullDownloadUrl := fmt.Sprintf("%s/%s/%s/%s", BaseBinariesUrl, channel, osPlatform, "flutter_"+osPlatform+"_"+flutterVersion+"-"+channel+".zip")
+	fullDownloadUrl := fmt.Sprintf("%s/%s/%s/%s", baseBinariesUrl, channel, osPlatform, "flutter_"+osPlatform+"_"+flutterVersion+"-"+channel+".zip")
 
 	resp, err := http.Get(fullDownloadUrl)
 

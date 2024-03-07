@@ -2,6 +2,7 @@ package file
 
 import (
 	"archive/zip"
+	"bufio"
 	"io"
 	"log"
 	"os"
@@ -27,6 +28,7 @@ func Unzip(src string, dst string) error {
 			defer rc.Close()
 
 			fpath := filepath.Join(dst, f.Name)
+			fpath = strings.Replace(fpath, "flutter"+string(os.PathSeparator), "", 1)
 			if f.FileInfo().IsDir() {
 				os.MkdirAll(fpath, f.Mode())
 			} else {
@@ -56,5 +58,27 @@ func Unzip(src string, dst string) error {
 		}
 	}
 
+	os.Remove(filepath.Join(dst, "flutter"))
+
 	return nil
+}
+
+func ReadLines(path string) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines, scanner.Err()
+}
+
+func Exists(filename string) bool {
+	_, err := os.Stat(filename)
+	return err == nil
 }
