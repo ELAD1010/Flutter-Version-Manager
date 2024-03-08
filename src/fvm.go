@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"fvm/encoding"
 	"fvm/file"
 	"fvm/flutter"
 	"fvm/web"
@@ -92,9 +93,35 @@ func main() {
 		fallthrough
 	case "version":
 		fmt.Println(FvmVersion)
+	case "current":
+		inuse := flutter.GetCurrentVersion()
+		v, _ := semver.Make(inuse)
+		err := v.Validate()
+
+		if err != nil {
+			fmt.Println(inuse)
+		} else if inuse == "Unknown" {
+			fmt.Println("No current version. Run 'fvm use x.x.x' to set a version.")
+		} else {
+			fmt.Println("v" + inuse)
+		}
+	case "flutter_mirror":
+		setFlutterMirror(detail)
 	default:
 		help()
 	}
+}
+
+func encode(val string) string {
+	converted := encoding.ToUTF8(val)
+
+	return string(converted)
+}
+
+func saveSettings() {
+	content := "root: " + strings.Trim(encode(env.root), " \n\r") + "\r\nproxy: " + strings.Trim(encode(env.proxy), " \n\r") + "\r\noriginalpath: " + strings.Trim(encode(env.originalpath), " \n\r") + "\r\noriginalversion: " + strings.Trim(encode(env.originalversion), " \n\r")
+	content = content + "\r\nflutter_mirror: " + strings.Trim(encode(env.flutter_mirror), " \n\r")
+	os.WriteFile(env.settings, []byte(content), 0644)
 }
 
 func setup() {
@@ -656,6 +683,11 @@ func disable() {
 	}
 
 	fmt.Println("fvm disabled")
+}
+
+func setFlutterMirror(mirrorUri string) {
+	env.flutter_mirror = mirrorUri
+	saveSettings()
 }
 
 func help() {
