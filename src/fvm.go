@@ -70,6 +70,8 @@ func main() {
 	switch args[1] {
 	case "install":
 		install(detail)
+	case "uninstall":
+		uninstall(detail)
 	case "use":
 		use(detail)
 	case "ls":
@@ -279,6 +281,14 @@ func getVersion(version string, localInstallsOnly ...bool) (string, error) {
 	return version, err
 }
 
+func checkVersionExceedsLatest(version string) bool {
+	_, current, _, _ := flutter.GetReleases()
+	latestVersion, _ := semver.Make(current[0])
+	v, _ := semver.Make(version)
+
+	return v.GT(latestVersion)
+}
+
 func accessDenied(err error) bool {
 	fmt.Println(err)
 
@@ -468,9 +478,72 @@ func showReleases() {
 }
 
 func install(flutterVersion string) {
+
+	requestedVersion := flutterVersion
+
+	args := os.Args
+	lastarg := args[len(args)-1]
+
+	if lastarg == "--insecure" {
+		env.verifyssl = false
+	}
+
+	flutterVersion, err := getVersion(flutterVersion)
+
+	if err != nil {
+		if strings.Contains(err.Error(), "No Major.Minor.Patch") {
+			sv, sverr := semver.Make(flutterVersion)
+			if sverr == nil {
+				sverr = sv.Validate()
+			}
+			if sverr != nil {
+				flutterVersion = findLatestSubVersion(flutterVersion)
+				if len(flutterVersion) == 0 {
+					sverr = errors.New("Unrecognized version: \"" + requestedVersion + "\"")
+				}
+			}
+			err = sverr
+		}
+
+		if err != nil {
+			fmt.Println(err.Error())
+			if flutterVersion == "" {
+				fmt.Println(" ")
+				help()
+			}
+			return
+		}
+	}
+
+	if err != nil {
+		fmt.Println("\"" + requestedVersion + "\" is not a valid version.")
+		fmt.Println("Please use a valid semantic version number, \"lts\", or \"latest\".")
+		return
+	}
+
+	if checkVersionExceedsLatest(flutterVersion) {
+		fmt.Println("Flutter v" + flutterVersion + " is not released yet or is not available.")
+		return
+	}
+
+	if flutter.IsVersionInstalled(env.root, flutterVersion) {
+		fmt.Println("Version " + flutterVersion + " is already installed.")
+		return
+	}
+
+	if !flutter.IsVersionAvailable(flutterVersion) {
+		url := "https://docs.flutter.dev/release/archive"
+		fmt.Println("\nVersion " + flutterVersion + " is not available.\n\nThe complete list of available versions can be found at " + url)
+		return
+	}
+
 	targetFileDir := filepath.Join(os.Getenv("FVM_HOME"), "v"+flutterVersion)
 	targetZipFile := filepath.Join(targetFileDir, "v"+flutterVersion+".zip")
 	os.Mkdir(targetFileDir, os.ModeDir)
+
+	if !env.verifyssl {
+		fmt.Println("\nWARNING: The remote SSL certificate will not be validated during the download process.")
+	}
 
 	channelType := flutter.GetChannelType(flutterVersion)
 
@@ -480,12 +553,74 @@ func install(flutterVersion string) {
 		osPlatform = "macos"
 	}
 
+	fmt.Println("Downloading flutter version " + flutterVersion + "...")
 	web.DownloadFlutterBinary(targetFileDir, flutterVersion, channelType, osPlatform)
 
-	file.Unzip(targetZipFile, targetFileDir)
-	os.Remove(targetZipFile)
+	err = file.Unzip(targetZipFile, targetFileDir)
+
+	if err != nil {
+		fmt.Println("Errror unzipping "+targetZipFile+": ", err)
+		err = os.RemoveAll(targetFileDir)
+		if err != nil {
+			fmt.Printf("Failed to remove %v dir. Please remove manually.\n", targetFileDir)
+		}
+		fmt.Println("Could not download flutter v" + flutterVersion + " 64-bit executable.")
+		return
+	}
+
+	err = os.Remove(targetZipFile)
+	if err != nil {
+		fmt.Printf("Failed to remove %v after successful extraction. Please remove manually.", targetZipFile)
+	}
 
 	fmt.Println("\n\nInstallation complete. If you want to use this version, type\n\nfvm use " + flutterVersion)
+}
+
+func uninstall(flutterVersion string) {
+	if len(flutterVersion) == 0 {
+		fmt.Println("Provide the version you want to uninstall.")
+		help()
+		return
+	}
+
+	lts, current, _, _ := flutter.GetReleases()
+
+	if strings.ToLower(flutterVersion) == "latest" || strings.ToLower(flutterVersion) == "flutter" {
+		flutterVersion = current[0]
+	} else if strings.ToLower(flutterVersion) == "lts" {
+		flutterVersion = lts[0]
+	} else if strings.ToLower(flutterVersion) == "newest" {
+		installed := flutter.GetInstalled(env.root)
+		if len(installed) == 0 {
+			fmt.Println("No versions of flutter found. Try installing the latest by typing fvm install latest.")
+			return
+		}
+
+		flutterVersion = installed[0]
+	}
+
+	if !flutter.IsVersionInstalled(env.root, flutterVersion) {
+		fmt.Println("flutter v" + flutterVersion + " is not installed. Type \"fvm list\" to see what is installed.")
+		return
+	}
+
+	fmt.Printf("Uninstalling flutter v" + flutterVersion + "...")
+	v := flutter.GetCurrentVersion()
+	if v == flutterVersion { // If uninstalled version is the currently used version, remove the symlink to this version before deleting it
+		_, err := elevatedRun("rmdir", filepath.Join(filepath.Clean(env.symlink), ".."), "/S", "/Q")
+		if err != nil {
+			fmt.Println(fmt.Sprint(err))
+			return
+		}
+	}
+	e := os.RemoveAll(filepath.Join(env.root, "v"+flutterVersion))
+	if e != nil {
+		fmt.Println("Error removing flutter v" + flutterVersion)
+		fmt.Println("Manually remove " + filepath.Join(env.root, "v"+flutterVersion) + ".")
+		return
+	}
+	fmt.Printf(" done")
+
 }
 
 func help() {
