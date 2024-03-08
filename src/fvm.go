@@ -78,6 +78,10 @@ func main() {
 		fallthrough
 	case "list":
 		list(detail)
+	case "on":
+		enable()
+	case "off":
+		disable()
 	case "v":
 		fmt.Println(FvmVersion)
 	case "--version":
@@ -621,6 +625,37 @@ func uninstall(flutterVersion string) {
 	}
 	fmt.Printf(" done")
 
+}
+
+func enable() {
+	dir := ""
+	files, _ := os.ReadDir(env.root)
+	for _, f := range files {
+		if f.IsDir() {
+			isFlutter := regexp.MustCompile("v").MatchString(f.Name())
+			if isFlutter {
+				dir = f.Name()
+			}
+		}
+	}
+	fmt.Println("fvm enabled")
+	if dir != "" {
+		use(strings.Trim(regexp.MustCompile("v").ReplaceAllString(dir, ""), " \n\r"))
+	} else {
+		fmt.Println("No versions of flutter found. Try installing the latest by typing fvm install latest")
+	}
+}
+
+func disable() {
+	ok, err := elevatedRun("rmdir", filepath.Clean(env.symlink))
+	if !ok {
+		return
+	}
+	if err != nil {
+		fmt.Print(fmt.Sprint(err))
+	}
+
+	fmt.Println("fvm disabled")
 }
 
 func help() {
