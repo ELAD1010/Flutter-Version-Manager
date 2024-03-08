@@ -77,6 +77,19 @@ func GetInstalled(root string) []string {
 	return installedList
 }
 
+func IsVersionAvailable(version string) bool {
+	_, _, stables, betas := GetReleases()
+
+	all := append(stables, betas...)
+
+	for _, v := range all {
+		if v == version {
+			return true
+		}
+	}
+	return false
+}
+
 func GetChannelType(version string) string {
 	if strings.Contains(version, "pre") {
 		return "beta"
