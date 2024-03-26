@@ -568,7 +568,7 @@ func install(flutterVersion string) {
 		return
 	}
 
-	targetFileDir := filepath.Join(os.Getenv("FVM_HOME"), "v"+flutterVersion)
+	targetFileDir := filepath.Join(env.root, "v"+flutterVersion)
 	targetZipFile := filepath.Join(targetFileDir, "v"+flutterVersion+".zip")
 	os.Mkdir(targetFileDir, os.ModeDir)
 
@@ -674,7 +674,7 @@ func enable() {
 }
 
 func disable() {
-	ok, err := elevatedRun("rmdir", filepath.Clean(env.symlink))
+	ok, err := elevatedRun("rmdir", filepath.Join(filepath.Clean(env.symlink), ".."))
 	if !ok {
 		return
 	}
@@ -700,17 +700,16 @@ func help() {
 	fmt.Println("                                 most recent LTS version. Optionally specify whether to install the 32 or 64 bit version (defaults")
 	fmt.Println("                                 to system arch). Set [arch] to \"all\" to install 32 AND 64 bit versions.")
 	fmt.Println("                                 Add --insecure to the end of this command to bypass SSL validation of the remote download server.")
-	fmt.Println("  fvm list [available]         : List the node.js installations. Type \"available\" at the end to see what can be installed. Aliased as ls.")
+	fmt.Println("  fvm list [available]         : List the flutter installations. Type \"available\" at the end to see what can be installed. Aliased as ls.")
 	fmt.Println("  fvm on                       : Enable flutter version management.")
 	fmt.Println("  fvm off                      : Disable flutter version management.")
 	fmt.Println("  fvm flutter_mirror [url]        : Set the node mirror. Defaults to https://storage.googleapis.com/flutter_infra_release/releases/. Leave [url] blank to use default url.")
 	fmt.Println("  fvm uninstall <version>      : The version must be a specific version.")
-	//  fmt.Println("  nvm update                   : Automatically update nvm to the latest version.")
 	fmt.Println("  fvm use [version] [arch]     : Switch to use the specified version. Optionally use \"latest\", \"lts\", or \"newest\".")
 	fmt.Println("                                 \"newest\" is the latest installed version. Optionally specify 32/64bit architecture.")
 	fmt.Println("                                 nvm use <arch> will continue using the selected version, but switch to 32/64 bit mode.")
-	fmt.Println("  fvm root [path]              : Set the directory where nvm should store different versions of node.js.")
+	fmt.Println("  fvm root [path]              : Set the directory where fvm should store different versions of flutter.")
 	fmt.Println("                                 If <path> is not set, the current root will be displayed.")
-	fmt.Println("  fvm [--]version              : Displays the current running version of nvm for Windows. Aliased as v.")
+	fmt.Println("  fvm [--]version              : Displays the current running version of fvm. Aliased as v.")
 	fmt.Println(" ")
 }
